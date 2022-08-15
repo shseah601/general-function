@@ -1,3 +1,5 @@
+// Watson Assistant Functions
+
 const AssistantV1 = require('ibm-watson/assistant/v1');
 const { IamAuthenticator } = require('ibm-watson/auth');
 
