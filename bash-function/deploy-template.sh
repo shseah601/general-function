@@ -2,7 +2,7 @@
 
 ## Base Template for Deployment Script
 ## AUTHOR     Seah Sheng Hong
-## VERSION    1.3
+## VERSION    1.5.1
 
 ################################################################################
 # Help                                                                         #
@@ -11,7 +11,7 @@ Help()
 {
     # Display Help
     echo
-    echo "Deployment Script 1.3 (2022-08-15)"
+    echo "Deployment Script 1.5.1 (2023-01-16)"
     echo "This is a bash script to help deploy Application(s). The zipped folder should be the same name as zip file."
     echo
     echo "Syntax: bash deploy.sh -[h|z|d|n|c|b|i|I]"
@@ -50,7 +50,9 @@ CleanUp()
     unset zipFilePath
     unset inputZipFilePath
     unset applicationParentDirectoryPath
+    applicationExtraParentPath=""
     unset applicationPath
+    applicationDirectoryPath=""
     unset applicationDirectoryName
     unset inputApplicationDirectoryName
     unset inputIgnoreBackup
@@ -60,6 +62,7 @@ CleanUp()
     unset zipFileExt
     unset zipFileNameNoExt
     unset applicationBackupParentPath
+    applicationBackupExtraParentPath=""
     unset applicationBackupPath
     unset currentDate
     unset currentTime
@@ -127,6 +130,8 @@ Exit()
     CleanUp
 
     exitCode=0
+    currentDate=$(date +"%F")
+    currentTime=$(date +"%T")
 
     if (( $# > 0 )) ; then
         re='^(1?[0-9]{1,2}|2([0-4][0-9]|5[0-5]))$'
@@ -175,7 +180,8 @@ while getopts "hz:d:n:cb::iI" option; do
         (d) # application parent directory path
             applicationParentDirectoryPath="$OPTARG";;
         (n) # application name
-            applicationDirectoryName="$OPTARG";;
+            applicationDirectoryPath=$(dirname -- "$OPTARG")
+            applicationDirectoryName=$(basename -- "$OPTARG");;
         (c) # use copy
             useCopyCommand="true";;
         (b) # backup parent directory path
@@ -251,7 +257,7 @@ if [ -z "$applicationDirectoryName" ]; then
     echo -e "\033[30;43mWarn\033[m -n [applicationName] option is empty, will unzip as $applicationDirectoryName"
     echo
 
-    # echo "Enter applciation name. e.g. psb-admin"
+    # echo "Enter applciation name. e.g. admin"
     # echo -n "Input: "
     # read inputApplicationDirectoryName
 
@@ -280,7 +286,17 @@ if ! [ -d "$applicationParentDirectoryPath" ]; then
 fi
 
 # set applicationPath
-DirectoryPath "$applicationParentDirectoryPath" "$applicationDirectoryName"
+DirectoryPath "$applicationParentDirectoryPath" "$applicationDirectoryPath"
+applicationExtraParentPath="$tempDirectoryNameOrFileName"
+
+# check if application extra parent directory exists
+if ! [[ -d "$applicationExtraParentPath" ]]; then
+    echo "$applicationExtraParentPath not exists"
+    echo "Creating $applicationExtraParentPath"
+    mkdir -p "$applicationExtraParentPath"
+fi
+
+DirectoryPath "$tempDirectoryNameOrFileName" "$applicationDirectoryName"
 applicationPath="$tempDirectoryNameOrFileName"
 unset tempDirectoryNameOrFileName
 
@@ -313,8 +329,12 @@ currentTime=$(date +"%H%M")
 
 backupDirectoryName="$applicationDirectoryName-$currentDate-$currentTime"
 
-DirectoryPath "$applicationBackupParentPath" "$backupDirectoryName"
+DirectoryPath "$applicationBackupParentPath" "$applicationDirectoryPath"
+DirectoryPath "$tempDirectoryNameOrFileName" "$backupDirectoryName"
 applicationBackupPath="$tempDirectoryNameOrFileName"
+
+echo "DEBUG applicationBackupPath $applicationBackupPath"
+
 unset tempDirectoryNameOrFileName
 
 ####################################
@@ -360,21 +380,30 @@ else
     cp "$zipFilePath" "$applicationParentDirectoryPath"
 fi
 
-DirectoryPath "$applicationBackupParentPath" "$applicationDirectoryName"
+DirectoryPath "$applicationBackupParentPath" "$applicationDirectoryPath"
+applicationBackupExtraParentPath="$tempDirectoryNameOrFileName";
+DirectoryPath "$tempDirectoryNameOrFileName" "$applicationDirectoryName"
 tempApplicationBackupPath="$tempDirectoryNameOrFileName"
 unset tempDirectoryNameOrFileName
+
+# check if backup app parent folder is exists
+if ! [ -d "$applicationBackupExtraParentPath" ]; then
+    echo "$applicationBackupExtraParentPath not exists"
+    echo "Creating $applicationBackupExtraParentPath"
+    mkdir -p "$applicationBackupExtraParentPath"
+fi
 
 # check if current app exists, 
 if [ -d "$applicationPath" ]; then
 
     # checks if has ignoreBackup flag
     if [ -z "$ignoreBackup" ]; then
-        if ! [[ $applicationParentDirectoryPath == $applicationBackupParentPath ]]; then
+        if ! [[ $applicationParentDirectoryPath == $applicationBackupExtraParentPath ]]; then
             # move current app folder to backup directory
-            echo "> mv $applicationPath $applicationBackupParentPath"
-            echo "Moving old application to $applicationBackupParentPath"
+            echo "> mv $applicationPath $applicationBackupExtraParentPath"
+            echo "Moving old application to $applicationBackupExtraParentPath"
             echo
-            mv "$applicationPath" "$applicationBackupParentPath"
+            mv "$applicationPath" "$applicationBackupExtraParentPath"
         fi
 
         # rename backup
@@ -383,7 +412,7 @@ if [ -d "$applicationPath" ]; then
         echo
         mv "$tempApplicationBackupPath" "$applicationBackupPath"
 
-        $backupIsCompleted=1
+        backupIsCompleted=1
     else
         # ignore back up
         echo "> rm -rf $applicationPath"
@@ -450,15 +479,24 @@ CleanUp
 ################################################################################
 # Change Log                                                                   #
 ################################################################################
-# 1.3 (2022-08-15)
+# 1.5.1 (2023-01-16)
+# Fixed to handle sub directory
+
+# 1.5.0 (2022-12-02)
+# Fixed Application name option to handle sub directory
+
+# 1.4.0 (2022-09-22)
+# Fixed Deployment stopped not showing current date time
+
+# 1.3.0 (2022-08-15)
 # Fixed string comparison from using double equal to single equal in CurrentMilliseconds.
 # Fixed no backup but shows backup completed
 
-# 1.2 (2021-11-17)
+# 1.2.0 (2021-11-17)
 # Fixed move zip file to destination, unzip original path with no file found error
 # Added timestamp
 
-# 1.0 - 1.1 (2021-10-26)
+# 1.0.0 - 1.1 (2021-10-26)
 # Initial development
 # Fixed bugs
 # Added null checks
